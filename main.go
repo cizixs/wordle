@@ -15,13 +15,27 @@ func loadFile(filename string) ([]string, error) {
 	return strings.Split(string(data), "\n"), nil
 }
 
+// loadWordsMap loads all words from file and if the word has duplicate characters
+func loadWordsMap(filename string) (map[string]bool, error) {
+	wordList, err := loadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+	result := make(map[string]bool, len(wordList))
+	for _, word := range wordList {
+		result[word] = hasDuplicateChar(word)
+	}
+	return result, nil
+}
+
 func main() {
-	words, err := loadFile("words.txt")
+	words, err := loadWordsMap("words.txt")
 	if err != nil {
 		panic("failed to load file")
 	}
 
 	fmt.Printf("total %d words found\n", len(words))
+	// blacklistWords := []string{}
 
 	tryWord := "raise"
 	tryCount := 0
@@ -40,10 +54,10 @@ func main() {
 		if input != "-1" {
 			words = filterByLastGuess(words, tryWord, input)
 		} else {
-			words = words[1:]
+			delete(words, tryWord)
 		}
 
-		if len(words) == 0 || tryCount >= 5 {
+		if len(words) == 0 {
 			fmt.Printf("no words found\n")
 			return
 		}
@@ -54,29 +68,38 @@ func main() {
 	}
 }
 
-func findNewWordToTry(words []string) string {
-	// try to find a word that has no duplicate characaters
-	for _, word := range words {
-		charMap := make(map[string]bool)
-		hasDuplicate := false
-		for index := range word {
-			if _, ok := charMap[word[index:index+1]]; ok {
-				hasDuplicate = true
-				break
-			}
-			charMap[word[index:index+1]] = true
+func hasDuplicateChar(word string) bool {
+	charMap := make(map[string]bool)
+	for index := range word {
+		if _, ok := charMap[word[index:index+1]]; ok {
+			return true
 		}
-		if !hasDuplicate {
+		charMap[word[index:index+1]] = true
+	}
+	return false
+}
+
+func findNewWordToTry(words map[string]bool) string {
+	// first try to find a word that has no duplicate characaters
+	for word, dup := range words {
+		if !dup {
 			return word
 		}
 	}
-	return words[0]
+
+	// since all words has duplicate characaters, return a random word
+	for word := range words {
+		return word
+	}
+
+	// this should never happen
+	return ""
 }
 
 // filterByLastGuess returns a new slice of words that fits last guess
-func filterByLastGuess(words []string, tryWorld, guessResult string) []string {
-	filteredWords := make([]string, 0)
-	for _, word := range words {
+func filterByLastGuess(words map[string]bool, tryWorld, guessResult string) map[string]bool {
+	filteredWords := make(map[string]bool, 0)
+	for word, dup := range words {
 		passed := true
 		for i := 0; i < len(tryWorld); i++ {
 			checkChar := tryWorld[i : i+1]
@@ -106,7 +129,7 @@ func filterByLastGuess(words []string, tryWorld, guessResult string) []string {
 		}
 
 		if passed {
-			filteredWords = append(filteredWords, word)
+			filteredWords[word] = dup
 		}
 	}
 
