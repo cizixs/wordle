@@ -96,39 +96,69 @@ func findNewWordToTry(words map[string]bool) string {
 	return ""
 }
 
-// filterByLastGuess returns a new slice of words that fits last guess
-func filterByLastGuess(words map[string]bool, tryWorld, guessResult string) map[string]bool {
-	filteredWords := make(map[string]bool, 0)
-	for word, dup := range words {
-		passed := true
-		for i := 0; i < len(tryWorld); i++ {
-			checkChar := tryWorld[i : i+1]
-			checkResult := guessResult[i : i+1]
-			switch checkResult {
-			case "0":
-				if strings.Contains(word, checkChar) {
-					passed = false
-					break
-				}
-			case "1":
-				if !strings.Contains(word, checkChar) {
-					passed = false
-					break
-				}
+func delChar(s string, index int) string {
+	return s[:index] + s[index+1:]
+}
 
-				if checkChar == word[i:i+1] {
-					passed = false
-					break
-				}
-			case "2":
-				if checkChar != word[i:i+1] {
-					passed = false
-					break
+func checkWordWithLastGuess(checkWord string, guessWord, guessResult string) bool {
+	if len(checkWord) == 1 && guessResult == "2" {
+		return true
+	}
+
+	passed := true
+	for i := 0; i < len(guessWord); i++ {
+		checkChar := guessWord[i : i+1]
+		checkResult := guessResult[i : i+1]
+		switch checkResult {
+		case "0":
+			//  检查的字符不存在有两种可能：
+			// 1. 字符串中不包含该字符
+			// 2. 字符串中有该字符串，但是猜测的单词中有多个该字符串，并且其他字符串已经完全匹配
+			correctGuessCount := 0
+			for j := 0; j < len(guessWord); j++ {
+				if guessResult[j:j+1] == "2" && guessWord[j:j+1] == checkChar {
+					correctGuessCount += 1
 				}
 			}
-		}
 
-		if passed {
+			if strings.Count(checkWord, checkChar) != correctGuessCount {
+				passed = false
+				break
+			}
+		case "1":
+			if !strings.Contains(checkWord, checkChar) {
+				passed = false
+				break
+			}
+
+			if checkChar == checkWord[i:i+1] {
+				passed = false
+				break
+			}
+		case "2":
+			if checkChar != checkWord[i:i+1] {
+				passed = false
+				break
+			}
+		}
+	}
+	return passed
+}
+
+// filterByLastGuess returns a new slice of words that fits last guess
+// guess result is a string of 0, 1, 2:
+// * 0 means the character does not exist
+// * 1 means the character exists but not in the right position
+// * 2 means the character exists and in the right position
+//
+// NOTE: there could be a situation where the guess word has duplicate characters, and guess result should be interpreted as the following:
+// * if one of the duplicate characters is in the right postition, the other character guess result indicates the match result of all but the first character.
+//   e.g. the guesss word is "plook", and the guess result is "01201", the first "o"'s guess result is "2" which means it's in the right position,
+//   the second "o"'s guess result is "0" which means there is only one "o" in the word, not "o"  does not exist
+func filterByLastGuess(words map[string]bool, guessWord, guessResult string) map[string]bool {
+	filteredWords := make(map[string]bool, 0)
+	for word, dup := range words {
+		if checkWordWithLastGuess(word, guessWord, guessResult) {
 			filteredWords[word] = dup
 		}
 	}
