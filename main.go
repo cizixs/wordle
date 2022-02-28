@@ -23,7 +23,9 @@ func loadWordsMap(filename string) (map[string]bool, error) {
 	}
 	result := make(map[string]bool, len(wordList))
 	for _, word := range wordList {
-		result[word] = hasDuplicateChar(word)
+		if word != "" {
+			result[word] = hasDuplicateChar(word)
+		}
 	}
 	return result, nil
 }
@@ -94,10 +96,6 @@ func findNewWordToTry(words map[string]bool) string {
 
 	// this should never happen
 	return ""
-}
-
-func delChar(s string, index int) string {
-	return s[:index] + s[index+1:]
 }
 
 func checkWordWithLastGuess(checkWord string, guessWord, guessResult string) bool {
